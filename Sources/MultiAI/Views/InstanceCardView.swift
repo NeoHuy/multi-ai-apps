@@ -85,6 +85,7 @@ struct InstanceCardView: View {
                         .foregroundStyle(.secondary)
                 }
                 .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .frame(width: 24, height: 24)
             }
 
