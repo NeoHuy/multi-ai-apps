@@ -44,10 +44,10 @@ open ~/Applications/MultiAI.app
 ## Usage Guide
 
 ### 1. Add an Account (`Cmd + N`)
-1. Open **MultiAI** and click **Thêm Tài khoản / Add Account** (`Cmd + N`).
+1. Open **MultiAI** and click **Add Account** (`Cmd + N`).
 2. Select an installed desktop app (or browse for any `.app` bundle).
 3. Enter a display name, pick a 1–2 character badge label and badge color, and review the auto-detected isolation settings.
-4. Click **Tạo Tài khoản / Create** — MultiAI creates an isolated profile and builds a standalone `.app` wrapper in `~/Applications/MultiAI Apps/`.
+4. Click **Create Account** — MultiAI creates an isolated profile and builds a standalone `.app` wrapper in `~/Applications/MultiAI Apps/`.
 
 ### 2. Antigravity Notes
 - MultiAI automatically enables **isolated `HOME`** for `Antigravity.app` so each account keeps its own login (`~/.gemini/jetski-standalone-oauth-token`) and runtime state/conversations (`~/.gemini/antigravity/`).

@@ -114,9 +114,9 @@ struct AddEditInstanceSheet: View {
     private var headerBar: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(editingInstance == nil ? "Thêm Tài khoản AI Mới" : "Chỉnh sửa Tài khoản")
+                Text(editingInstance == nil ? "Add AI Account" : "Edit Account")
                     .font(.headline)
-                Text("Tạo một phiên bản app độc lập chạy song song với dữ liệu đăng nhập riêng.")
+                Text("Create an isolated app wrapper that runs concurrently with its own login session.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -129,10 +129,10 @@ struct AddEditInstanceSheet: View {
     private var appPickerSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("1. Chọn Desktop App")
+                Text("1. Choose Desktop App")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Button("Chọn .app khác...") {
+                Button("Browse Other .app...") {
                     browseForApp()
                 }
                 .controlSize(.small)
@@ -194,7 +194,7 @@ struct AddEditInstanceSheet: View {
 
     private var identitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("2. Tên & Biểu tượng App Độc lập")
+            Text("2. Standalone App Name & Icon")
                 .font(.subheadline.weight(.semibold))
 
             HStack(alignment: .top, spacing: 16) {
@@ -206,17 +206,17 @@ struct AddEditInstanceSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .shadow(color: .black.opacity(0.16), radius: 5, y: 2)
 
-                    Text("Xem trước")
+                    Text("Preview")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Tên hiển thị")
+                        Text("Display Name")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        TextField("Ví dụ: Claude - Công việc", text: $name)
+                        TextField("e.g., Claude - Work", text: $name)
                             .textFieldStyle(.roundedBorder)
                             .onChange(of: name) { _, newValue in
                                 if editingInstance == nil {
@@ -227,7 +227,7 @@ struct AddEditInstanceSheet: View {
 
                     HStack(spacing: 14) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Nhãn Badge (1-2 ký tự)")
+                            Text("Badge Label (1-2 chars)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             TextField("W", text: $badgeText)
@@ -241,7 +241,7 @@ struct AddEditInstanceSheet: View {
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Màu Badge")
+                            Text("Badge Color")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             HStack(spacing: 7) {
@@ -271,7 +271,7 @@ struct AddEditInstanceSheet: View {
 
             Toggle(isOn: $createStandaloneApp) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Tạo file .app độc lập trong ~/Applications/MultiAI Apps")
+                    Text("Create standalone .app in ~/Applications/MultiAI Apps")
                         .font(.callout)
                     if createStandaloneApp {
                         Text("~/Applications/MultiAI Apps/\(previewSanitizedAppName)")
@@ -288,7 +288,7 @@ struct AddEditInstanceSheet: View {
             HStack(spacing: 8) {
                 Image(systemName: engine.supportsTrueMultiAccount ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(engine.supportsTrueMultiAccount ? .green : .orange)
-                Text("Chế độ tách biệt: \(engine.displayName)")
+                Text("Isolation mode: \(engine.displayName)")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
             }
@@ -300,18 +300,18 @@ struct AddEditInstanceSheet: View {
             if selectedApp?.recommendsIsolatedHome == true {
                 Divider()
 
-                Toggle("Tách thư mục HOME riêng (cần thiết để tách ~/.gemini)", isOn: $isolateHomeDirectory)
+                Toggle("Isolate HOME directory (required for ~/.gemini)", isOn: $isolateHomeDirectory)
                     .font(.callout.weight(.medium))
 
-                Text("Các thư mục làm việc (workspace, Desktop, Documents, Downloads, .ssh, .gitconfig, .zshrc) sẽ được symlink sang HOME riêng để không ảnh hưởng terminal/git, trong khi ~/.gemini được tách hoàn toàn cho từng tài khoản.")
+                Text("Working directories and dotfiles (workspace, Desktop, Documents, Downloads, .ssh, .gitconfig, .zshrc) are symlinked into the isolated HOME so Git and terminals keep working, while ~/.gemini stays isolated per account.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 if isolateHomeDirectory {
-                    Toggle("Dùng chung danh sách Projects, MCP & Plugins (~/.gemini/config)", isOn: $shareAntigravityProjects)
+                    Toggle("Share Projects, MCP & Plugins (~/.gemini/config)", isOn: $shareAntigravityProjects)
                         .font(.callout.weight(.medium))
 
-                    Text("Chia sẻ danh sách Projects, MCP và Plugins qua symlink mà vẫn giữ riêng tài khoản đăng nhập (jetski-standalone-oauth-token) và các phiên chat/daemon đang chạy (antigravity/).")
+                    Text("Shares your Projects list, MCP servers, and Plugins via symlinks while keeping login tokens (jetski-standalone-oauth-token) and active conversations/daemon (antigravity/) isolated per account.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -322,7 +322,7 @@ struct AddEditInstanceSheet: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                             .padding(.top, 2)
-                        Text("Lưu ý Keychain: Antigravity có tích hợp macOS Keychain (authstore). Nếu sau khi tách HOME mà macOS vẫn chia sẻ token đăng nhập OAuth giữa các cửa sổ trong cùng user macOS, bạn có thể cần đăng xuất trong cửa sổ thứ 2 hoặc cân nhắc dùng macOS User riêng.")
+                        Text("Keychain note: Antigravity integrates with macOS Keychain (authstore). If macOS still shares OAuth tokens between windows under the same macOS user, try signing out in the second window or using a separate macOS user.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -333,7 +333,7 @@ struct AddEditInstanceSheet: View {
 
             if engine == .nativeMacOS && (selectedApp?.usesKeychainIsolationCaveat ?? false) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Lưu ý cho app Native dùng macOS Keychain (như ChatGPT.app): Các cửa sổ mở đồng thời có thể dùng chung token đăng nhập từ Keychain của hệ thống. Để dùng 2 tài khoản ChatGPT hoàn toàn tách biệt, bạn nên chạy qua Browser App Mode.")
+                    Text("Native apps using macOS Keychain (like ChatGPT.app) may share login tokens across concurrent windows. For fully independent ChatGPT accounts, switch to Browser App Mode.")
                         .font(.caption)
                         .foregroundStyle(.primary)
 
@@ -342,7 +342,7 @@ struct AddEditInstanceSheet: View {
                             switchToChatGPTBrowserApp(using: browser)
                         } label: {
                             Label(
-                                "Chuyển sang \(browser.name) App Mode (https://chatgpt.com)",
+                                "Switch to \(browser.name) App Mode (https://chatgpt.com)",
                                 systemImage: "arrow.triangle.swap"
                             )
                         }
@@ -361,14 +361,14 @@ struct AddEditInstanceSheet: View {
 
     private var browserURLSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("URL Web App (tuỳ chọn)")
+            Text("Web App URL (optional)")
                 .font(.subheadline.weight(.semibold))
 
             TextField("https://gemini.google.com", text: $targetURL)
                 .textFieldStyle(.roundedBorder)
 
             HStack(spacing: 6) {
-                Text("Gợi ý:")
+                Text("Presets:")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 ForEach(WebAppPreset.defaults) { preset in
@@ -402,7 +402,7 @@ struct AddEditInstanceSheet: View {
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(showAdvanced ? 90 : 0))
 
-                    Text("Tuỳ chọn nâng cao")
+                    Text("Advanced Options")
                         .font(.subheadline.weight(.medium))
 
                     Spacer()
@@ -415,7 +415,7 @@ struct AddEditInstanceSheet: View {
 
             if showAdvanced {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Engine tách biệt", selection: $engine) {
+                    Picker("Isolation Engine", selection: $engine) {
                         ForEach(IsolationEngine.allCases) { item in
                             Text(item.displayName).tag(item)
                         }
@@ -423,32 +423,32 @@ struct AddEditInstanceSheet: View {
                     .pickerStyle(.menu)
 
                     if engine == .vscodeIDE {
-                        Toggle("Tách riêng thư mục Extensions (--extensions-dir)", isOn: $isolateExtensions)
+                        Toggle("Isolate Extensions directory (--extensions-dir)", isOn: $isolateExtensions)
                             .font(.callout)
                     }
 
-                    Toggle("Tách biến môi trường HOME riêng cho profile này", isOn: $isolateHomeDirectory)
+                    Toggle("Isolate HOME environment for this profile", isOn: $isolateHomeDirectory)
                         .font(.callout)
-                        .help("Hữu ích cho một số app đọc cấu hình từ $HOME thay vì XDG hoặc --user-data-dir.")
+                        .help("Useful for apps that store state under $HOME instead of XDG or --user-data-dir.")
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Tham số dòng lệnh bổ sung (Extra CLI Args)")
+                        Text("Extra CLI Arguments")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        TextField("--disable-gpu --lang=vi", text: $extraArgs)
+                        TextField("--disable-gpu --lang=en", text: $extraArgs)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Biến môi trường (Environment Variables)")
+                            Text("Environment Variables")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Button {
                                 envVars.append(EnvVarEntry())
                             } label: {
-                                Label("Thêm biến", systemImage: "plus")
+                                Label("Add Variable", systemImage: "plus")
                             }
                             .controlSize(.mini)
                         }
@@ -480,14 +480,14 @@ struct AddEditInstanceSheet: View {
 
     private var footerBar: some View {
         HStack {
-            Button("Huỷ") {
+            Button("Cancel") {
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
 
             Spacer()
 
-            Button(editingInstance == nil ? "Tạo Tài khoản" : "Lưu thay đổi") {
+            Button(editingInstance == nil ? "Create Account" : "Save Changes") {
                 save()
             }
             .buttonStyle(.borderedProminent)
@@ -572,13 +572,13 @@ struct AddEditInstanceSheet: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
-        panel.prompt = "Chọn ứng dụng"
+        panel.prompt = "Choose Application"
 
         if panel.runModal() == .OK, let url = panel.url {
             if let inspected = AppDiscoveryService.inspectApp(at: url.path) {
                 selectApp(inspected, preserveUserEdits: false)
             } else {
-                validationError = "Không đọc được Info.plist của app đã chọn."
+                validationError = "Could not read Info.plist from the selected app."
             }
         }
     }
@@ -586,7 +586,7 @@ struct AddEditInstanceSheet: View {
     private func save() {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
-            validationError = "Vui lòng nhập tên cho tài khoản."
+            validationError = "Please enter an account name."
             return
         }
 
@@ -594,7 +594,7 @@ struct AddEditInstanceSheet: View {
             $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame && $0.id != editingInstance?.id
         }
         if duplicateName {
-            validationError = "Tên \"\(trimmedName)\" đã tồn tại. Vui lòng chọn tên khác."
+            validationError = "An account named \"\(trimmedName)\" already exists. Please choose another name."
             return
         }
 
@@ -603,7 +603,7 @@ struct AddEditInstanceSheet: View {
         let sourceBundleID = selectedApp?.bundleIdentifier ?? editingInstance?.sourceBundleID ?? ""
 
         guard !sourcePath.isEmpty else {
-            validationError = "Vui lòng chọn ứng dụng gốc."
+            validationError = "Please select a source desktop application."
             return
         }
 
@@ -638,7 +638,7 @@ struct AddEditInstanceSheet: View {
             }
             dismiss()
         } catch {
-            validationError = "Lỗi khi lưu: \(error.localizedDescription)"
+            validationError = "Failed to save: \(error.localizedDescription)"
         }
     }
 }

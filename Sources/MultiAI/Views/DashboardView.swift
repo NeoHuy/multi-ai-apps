@@ -78,26 +78,26 @@ struct DashboardView: View {
             detailContent
         }
         .navigationTitle(navigationTitleText)
-        .searchable(text: $searchText, prompt: "Tìm tài khoản hoặc ứng dụng...")
+        .searchable(text: $searchText, prompt: "Search accounts or apps...")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu {
                     Button {
                         store.tileRunning(for: filteredInstances, layout: .sideBySide)
                     } label: {
-                        Label("Chia đều Side-by-Side (đang chạy)", systemImage: WindowTileLayout.sideBySide.systemImage)
+                        Label("Tile Side by Side (Running)", systemImage: WindowTileLayout.sideBySide.systemImage)
                     }
 
                     Button {
                         store.tileRunning(for: filteredInstances, layout: .grid)
                     } label: {
-                        Label("Chia lưới Grid (đang chạy)", systemImage: WindowTileLayout.grid.systemImage)
+                        Label("Tile Grid (Running)", systemImage: WindowTileLayout.grid.systemImage)
                     }
 
                     Button {
                         store.tileRunning(for: filteredInstances, layout: .stacked)
                     } label: {
-                        Label("Chia dọc Stacked (đang chạy)", systemImage: WindowTileLayout.stacked.systemImage)
+                        Label("Tile Stacked (Running)", systemImage: WindowTileLayout.stacked.systemImage)
                     }
 
                     Divider()
@@ -105,18 +105,18 @@ struct DashboardView: View {
                     Button {
                         store.launchAndTile(filteredInstances, layout: .sideBySide)
                     } label: {
-                        Label("Mở tất cả & Chia Side-by-Side", systemImage: "rectangle.split.2x1.fill")
+                        Label("Launch All & Tile Side by Side", systemImage: "rectangle.split.2x1.fill")
                     }
                     .disabled(filteredInstances.isEmpty)
                 } label: {
-                    Label("Chia cửa sổ", systemImage: "rectangle.split.2x1")
+                    Label("Tile Windows", systemImage: "rectangle.split.2x1")
                 }
-                .help("Sắp xếp các cửa sổ tài khoản đang chạy")
+                .help("Arrange windows of running accounts")
 
                 Button {
                     uiState.openAddAccount()
                 } label: {
-                    Label("Thêm Tài khoản", systemImage: "plus")
+                    Label("Add Account", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut("n", modifiers: .command)
@@ -140,10 +140,10 @@ struct DashboardView: View {
     private var sidebarContent: some View {
         VStack(spacing: 0) {
             List(selection: $selection) {
-                Section("Tổng quan") {
+                Section("Overview") {
                     Label {
                         HStack {
-                            Text("Tất cả tài khoản")
+                            Text("All Accounts")
                             Spacer()
                             countPill(store.instances.count, color: .secondary)
                         }
@@ -154,7 +154,7 @@ struct DashboardView: View {
 
                     Label {
                         HStack {
-                            Text("Đang chạy")
+                            Text("Running Now")
                             Spacer()
                             if !store.runningInstances.isEmpty {
                                 countPill(store.runningInstances.count, color: .green)
@@ -168,7 +168,7 @@ struct DashboardView: View {
                 }
 
                 if !appGroups.isEmpty {
-                    Section("Ứng dụng") {
+                    Section("Apps") {
                         ForEach(appGroups) { group in
                             Label {
                                 HStack {
@@ -197,7 +197,7 @@ struct DashboardView: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                    Text("Lưu các file .app độc lập")
+                    Text("Stores standalone .app bundles")
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }
@@ -208,7 +208,7 @@ struct DashboardView: View {
                     Image(systemName: "folder")
                 }
                 .buttonStyle(.borderless)
-                .help("Mở thư mục MultiAI Apps trong Finder")
+                .help("Open MultiAI Apps folder in Finder")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -279,7 +279,7 @@ struct DashboardView: View {
 
     private var groupActionBar: some View {
         HStack(spacing: 10) {
-            Text("\(filteredInstances.count) tài khoản")
+            Text("\(filteredInstances.count) accounts")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
 
@@ -288,7 +288,7 @@ struct DashboardView: View {
             Button {
                 store.launchAll(filteredInstances)
             } label: {
-                Label("Mở tất cả", systemImage: "play.fill")
+                Label("Launch All", systemImage: "play.fill")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -296,7 +296,7 @@ struct DashboardView: View {
             Button {
                 store.launchAndTile(filteredInstances, layout: .sideBySide)
             } label: {
-                Label("Mở & Chia Side-by-Side", systemImage: "rectangle.split.2x1")
+                Label("Launch & Tile Side by Side", systemImage: "rectangle.split.2x1")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -305,7 +305,7 @@ struct DashboardView: View {
                 Button {
                     store.stopAll(filteredInstances)
                 } label: {
-                    Label("Tắt tất cả", systemImage: "stop.fill")
+                    Label("Stop All", systemImage: "stop.fill")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -330,7 +330,7 @@ struct DashboardView: View {
                     .font(.callout)
                 Spacer()
                 if store.needsAccessibilityBanner {
-                    Button("Mở Cài đặt Accessibility") {
+                    Button("Open Accessibility Settings") {
                         store.openAccessibilitySettings()
                     }
                     .buttonStyle(.borderedProminent)
@@ -370,14 +370,14 @@ struct DashboardView: View {
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             ContentUnavailableView {
-                Label("Chưa có tài khoản AI nào", systemImage: "square.stack.3d.up.badge.a")
+                Label("No AI Accounts Yet", systemImage: "square.stack.3d.up.badge.a")
             } description: {
-                Text("Thêm tài khoản mới để tạo một phiên bản app độc lập có biểu tượng riêng và chạy song song cùng lúc.")
+                Text("Add a new account to create an isolated standalone app with its own icon badge and run multiple sessions simultaneously.")
             } actions: {
                 Button {
                     uiState.openAddAccount()
                 } label: {
-                    Label("Thêm Tài khoản Đầu tiên", systemImage: "plus")
+                    Label("Add Your First Account", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -385,7 +385,7 @@ struct DashboardView: View {
 
             if !quickStartApps.isEmpty {
                 VStack(spacing: 10) {
-                    Text("Tạo nhanh từ ứng dụng đã cài trên máy")
+                    Text("Quick start from installed apps")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
 

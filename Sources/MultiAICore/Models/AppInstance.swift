@@ -69,13 +69,13 @@ public enum IsolationEngine: String, Codable, CaseIterable, Identifiable, Sendab
     public var summaryDescription: String {
         switch self {
         case .vscodeIDE:
-            return "Dùng --user-data-dir riêng (và tuỳ chọn --extensions-dir). Phù hợp cho Antigravity, Cursor, VS Code."
+            return "Uses a dedicated --user-data-dir (and optional --extensions-dir). Best for Cursor and VS Code-based IDEs."
         case .electron:
-            return "Dùng --user-data-dir riêng để tách toàn bộ phiên đăng nhập, cache và cookies. Phù hợp cho Claude Desktop."
+            return "Uses a dedicated --user-data-dir to separate sessions, cookies, and cache. Best for Antigravity and Claude Desktop."
         case .chromiumBrowserApp:
-            return "Mở trang Web AI như một cửa sổ app độc lập với profile trình duyệt riêng biệt (--user-data-dir & --app)."
+            return "Opens Web AI sites as standalone app windows with isolated browser profiles (--user-data-dir & --app)."
         case .nativeMacOS:
-            return "Chạy instance riêng bằng open -n cùng biến môi trường XDG (có tuỳ chọn tách HOME). Một số app dùng macOS Keychain vẫn có thể dùng chung phiên đăng nhập."
+            return "Launches a separate instance via open -n with isolated XDG environment variables (plus optional HOME isolation). Apps using macOS Keychain may still share login sessions."
         }
     }
 

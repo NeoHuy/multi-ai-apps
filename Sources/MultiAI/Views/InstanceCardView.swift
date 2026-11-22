@@ -65,13 +65,13 @@ struct InstanceCardView: View {
                     }
 
                     if instance.sourceBundleID.lowercased().hasPrefix("com.google.antigravity") && !instance.isolateHomeDirectory {
-                        Label("Chung HOME — bật tách HOME", systemImage: "exclamationmark.triangle.fill")
+                        Label("Shared HOME — enable HOME isolation", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption2.weight(.medium))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.orange.opacity(0.14), in: Capsule())
                             .foregroundStyle(.orange)
-                            .help("Antigravity lưu cấu hình/tài khoản trong ~/.gemini. Hãy bấm Chỉnh sửa và bật 'Tách thư mục HOME riêng'.")
+                            .help("Antigravity stores configuration and accounts in ~/.gemini. Click Edit and enable 'Isolate HOME directory'.")
                     }
                 }
 
@@ -96,10 +96,10 @@ struct InstanceCardView: View {
                         .fill(isRunning ? Color.green : Color.secondary.opacity(0.4))
                         .frame(width: 8, height: 8)
 
-                    Text(isRunning ? "Đang chạy" : "Đã tắt")
+                    Text(isRunning ? "Running" : "Stopped")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(isRunning ? Color.primary : Color.secondary)
-                        .help(pid.map { "PID: \($0)" } ?? "Chưa chạy")
+                        .help(pid.map { "PID: \($0)" } ?? "Not running")
                 }
 
                 Spacer()
@@ -151,19 +151,19 @@ struct InstanceCardView: View {
             cardMenuItems
         }
         .confirmationDialog(
-            "Xoá tài khoản \"\(instance.name)\"?",
+            "Delete account \"\(instance.name)\"?",
             isPresented: $showingDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button("Chỉ xoá .app & cấu hình (giữ dữ liệu đăng nhập)") {
+            Button("Remove .app & Config Only (Keep Login Data)") {
                 onDelete(false)
             }
-            Button("Xoá hoàn toàn cả dữ liệu Profile", role: .destructive) {
+            Button("Delete Everything Including Profile Data", role: .destructive) {
                 onDelete(true)
             }
-            Button("Huỷ", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Nếu giữ dữ liệu Profile, bạn có thể tạo lại tài khoản sau mà không mất phiên đăng nhập.")
+            Text("If you keep profile data, you can recreate this account later without losing its login session.")
         }
     }
 
@@ -179,14 +179,14 @@ struct InstanceCardView: View {
             Divider()
         }
 
-        Button("Chỉnh sửa...", systemImage: "pencil", action: onEdit)
-        Button("Nhân bản (tạo thêm tài khoản)", systemImage: "plus.square.on.square", action: onDuplicate)
+        Button("Edit...", systemImage: "pencil", action: onEdit)
+        Button("Duplicate (Create Another Account)", systemImage: "plus.square.on.square", action: onDuplicate)
         Divider()
-        Button("Hiện file .app trong Finder", systemImage: "folder", action: onRevealApp)
-        Button("Mở thư mục Profile", systemImage: "internaldrive", action: onRevealProfile)
-        Button("Tạo lại file .app", systemImage: "arrow.triangle.2.circlepath", action: onRebuildApp)
+        Button("Reveal .app in Finder", systemImage: "folder", action: onRevealApp)
+        Button("Open Profile Folder", systemImage: "internaldrive", action: onRevealProfile)
+        Button("Rebuild .app Bundle", systemImage: "arrow.triangle.2.circlepath", action: onRebuildApp)
         Divider()
-        Button("Xoá...", systemImage: "trash", role: .destructive) {
+        Button("Delete...", systemImage: "trash", role: .destructive) {
             showingDeleteConfirm = true
         }
     }

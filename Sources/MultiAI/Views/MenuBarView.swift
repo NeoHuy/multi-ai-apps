@@ -33,9 +33,9 @@ struct MenuBarView: View {
                     Image(systemName: "square.stack.3d.up")
                         .font(.title2)
                         .foregroundStyle(.secondary)
-                    Text("Chưa có tài khoản nào")
+                    Text("No accounts yet")
                         .font(.callout.weight(.medium))
-                    Text("Mở MultiAI Manager để tạo app đầu tiên.")
+                    Text("Open MultiAI Manager to create your first app.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -67,7 +67,7 @@ struct MenuBarView: View {
 
                 let count = store.runningInstances.count
                 if count > 0 {
-                    Text("\(count) đang chạy")
+                    Text("\(count) running")
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -78,7 +78,7 @@ struct MenuBarView: View {
 
             Spacer()
 
-            Button("Mở Manager") {
+            Button("Open Manager") {
                 openDashboard()
             }
             .buttonStyle(.bordered)
@@ -90,7 +90,7 @@ struct MenuBarView: View {
 
     private var quickTileBar: some View {
         HStack(spacing: 8) {
-            Text("Chia cửa sổ:")
+            Text("Tile windows:")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -193,13 +193,13 @@ struct MenuBarView: View {
                 openDashboard()
                 uiState.openAddAccount()
             } label: {
-                Label("Thêm Tài khoản", systemImage: "plus")
+                Label("Add Account", systemImage: "plus")
             }
             .buttonStyle(.borderless)
 
             Spacer()
 
-            Button("Thoát MultiAI") {
+            Button("Quit MultiAI") {
                 NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.borderless)

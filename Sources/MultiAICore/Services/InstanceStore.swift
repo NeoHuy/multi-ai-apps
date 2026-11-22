@@ -83,7 +83,7 @@ public final class InstanceStore {
             decoder.dateDecodingStrategy = .iso8601
             instances = try decoder.decode([AppInstance].self, from: data)
         } catch {
-            lastErrorMessage = "Không thể đọc danh sách tài khoản: \(error.localizedDescription)"
+            lastErrorMessage = "Failed to load saved accounts: \(error.localizedDescription)"
             instances = []
         }
     }
@@ -112,7 +112,7 @@ public final class InstanceStore {
 
         instances.append(mutable)
         try saveInstances()
-        statusBannerMessage = "Đã tạo tài khoản \"\(mutable.name)\"."
+        statusBannerMessage = "Created account \"\(mutable.name)\"."
     }
 
     public func updateInstance(_ instance: AppInstance) throws {
@@ -138,7 +138,7 @@ public final class InstanceStore {
 
         instances[index] = updated
         try saveInstances()
-        statusBannerMessage = "Đã cập nhật \"\(updated.name)\"."
+        statusBannerMessage = "Updated \"\(updated.name)\"."
     }
 
     public func rebuildStandaloneApp(for instance: AppInstance) {
@@ -151,9 +151,9 @@ public final class InstanceStore {
                 instances[idx] = updated
                 try saveInstances()
             }
-            statusBannerMessage = "Đã tạo lại app độc lập cho \"\(updated.name)\"."
+            statusBannerMessage = "Rebuilt standalone app for \"\(updated.name)\"."
         } catch {
-            lastErrorMessage = "Không thể tạo lại .app: \(error.localizedDescription)"
+            lastErrorMessage = "Failed to rebuild .app bundle: \(error.localizedDescription)"
         }
     }
 
@@ -213,7 +213,7 @@ public final class InstanceStore {
         runningPIDs.removeValue(forKey: instance.id)
         instances.removeAll { $0.id == instance.id }
         try saveInstances()
-        statusBannerMessage = "Đã xoá \"\(instance.name)\"."
+        statusBannerMessage = "Deleted \"\(instance.name)\"."
     }
 
     // MARK: - Process Lifecycle
@@ -225,7 +225,7 @@ public final class InstanceStore {
         }
 
         guard FileManager.default.fileExists(atPath: instance.sourceAppPath) else {
-            lastErrorMessage = "Không tìm thấy ứng dụng gốc tại \(instance.sourceAppPath)."
+            lastErrorMessage = "Source application not found at \(instance.sourceAppPath)."
             return
         }
 
@@ -254,7 +254,7 @@ public final class InstanceStore {
                 try? await Task.sleep(for: .milliseconds(700))
                 await refreshRunningStates()
             } catch {
-                lastErrorMessage = "Không thể mở \"\(instance.name)\": \(error.localizedDescription)"
+                lastErrorMessage = "Failed to launch \"\(instance.name)\": \(error.localizedDescription)"
             }
         }
     }
@@ -309,7 +309,7 @@ public final class InstanceStore {
         let pool = targets ?? instances
         let pids = pool.compactMap { runningPIDs[$0.id] }
         guard !pids.isEmpty else {
-            lastErrorMessage = "Chưa có tài khoản nào đang chạy để chia cửa sổ."
+            lastErrorMessage = "No running accounts to tile."
             return
         }
 
@@ -317,12 +317,12 @@ public final class InstanceStore {
         switch result {
         case .success(let count):
             needsAccessibilityBanner = false
-            statusBannerMessage = "Đã sắp xếp \(count) cửa sổ (\(layout.displayName))."
+            statusBannerMessage = "Tiled \(count) windows (\(layout.displayName))."
         case .needsAccessibilityPermission:
             needsAccessibilityBanner = true
-            lastErrorMessage = "MultiAI cần quyền Accessibility để sắp xếp cửa sổ các app đang chạy."
+            lastErrorMessage = "MultiAI needs Accessibility permission to arrange windows of running apps."
         case .noWindowsFound:
-            lastErrorMessage = "Không tìm thấy cửa sổ hiển thị nào để sắp xếp."
+            lastErrorMessage = "No visible windows found to arrange."
         }
     }
 
@@ -336,7 +336,7 @@ public final class InstanceStore {
         }
 
         launchAll(stopped)
-        statusBannerMessage = "Đang khởi chạy \(stopped.count) tài khoản để chia cửa sổ..."
+        statusBannerMessage = "Launching \(stopped.count) accounts to tile windows..."
 
         Task {
             try? await Task.sleep(for: .seconds(2.3))
@@ -353,7 +353,7 @@ public final class InstanceStore {
         if FileManager.default.fileExists(atPath: url.path) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         } else {
-            lastErrorMessage = "Chưa có file .app cho \"\(instance.name)\". Hãy bấm Tạo lại .app."
+            lastErrorMessage = "Standalone .app bundle not found for \"\(instance.name)\". Try Rebuild .app Bundle."
         }
     }
 

@@ -8,9 +8,9 @@ public enum IconBadgeError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .bitmapCreationFailed:
-            return "Không thể tạo bitmap để vẽ icon."
+            return "Failed to allocate bitmap context for rendering the icon."
         case .pngEncodingFailed:
-            return "Không thể mã hoá PNG cho file .icns."
+            return "Failed to encode PNG data for the .icns bundle."
         }
     }
 }
