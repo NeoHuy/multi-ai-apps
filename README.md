@@ -1,55 +1,78 @@
 # MultiAI — macOS Multi-Account Desktop App Manager
 
-**MultiAI** là ứng dụng native macOS (SwiftUI) giúp bạn tạo, quản lý và chạy **nhiều tài khoản độc lập song song** cho các ứng dụng AI trên máy (Claude, Antigravity, Gemini/ChatGPT qua Chrome/Edge App Mode, Cursor, v.v.).
+**MultiAI** is a lightweight, native macOS (SwiftUI) manager that lets you create, organize, and run **multiple isolated accounts simultaneously** for installed desktop AI applications.
 
-Mỗi tài khoản được tạo sẽ trở thành **một app `.app` độc lập** nằm trong `~/Applications/MultiAI Apps/` với icon có badge màu phân biệt và thư mục dữ liệu riêng (`~/Library/Application Support/MultiAI/Profiles/<UUID>`), có thể mở từ Spotlight, Dock, Dashboard hoặc Menu Bar.
+Each account is wrapped into its own standalone `.app` bundle inside `~/Applications/MultiAI Apps/` with a custom colored icon badge and an isolated profile directory (`~/Library/Application Support/MultiAI/Profiles/<UUID>`), so you can launch and switch between accounts from the Dashboard, Menu Bar, Spotlight, or Dock.
 
----
-
-## Tính năng chính
-
-- **Tự động phát hiện ứng dụng trên máy** (`/Applications` & `~/Applications`) và chọn cơ chế tách biệt phù hợp:
-  - **IDE Isolated** (`Antigravity.app`, `Cursor.app`, `VS Code`): truyền `--user-data-dir` riêng (và tuỳ chọn `--extensions-dir`).
-  - **Electron Isolated** (`Claude.app`, Electron apps): truyền `--user-data-dir` riêng để tách hoàn toàn phiên đăng nhập, cookies, cache.
-  - **Browser App Mode** (`Google Chrome.app`, `Microsoft Edge.app`, `Brave.app`, `Arc.app`): mở các Web AI (`gemini.google.com`, `chatgpt.com`, `claude.ai`, ...) dưới dạng cửa sổ app độc lập với profile riêng.
-  - **Native macOS** (`ChatGPT.app` hoặc app native khác): mở nhiều instance qua `open -n` kèm biến môi trường `XDG_*` (có tuỳ chọn tách `HOME`). *Lưu ý: các app native dùng macOS Keychain như `ChatGPT.app` vẫn có thể dùng chung token Keychain; MultiAI hỗ trợ chuyển nhanh 1-click sang `Browser App Mode` cho `https://chatgpt.com` để tách tài khoản hoàn toàn.*
-- **Tạo `.app` độc lập có icon Badge màu sắc**: render `.icns` nhiều độ phân giải ngay trong Swift (không phụ thuộc công cụ ngoài), hỗ trợ ghim lên Dock hoặc mở qua Spotlight.
-- **Theo dõi trạng thái live & Menu Bar launcher**: xem tài khoản nào đang chạy (PID), Launch / Focus / Stop nhanh từ Menu Bar.
-- **Chia cửa sổ song song (Window Tiling)**: sắp xếp các app đang chạy theo bố cục **Side by Side**, **Grid**, hoặc **Stacked** bằng macOS Accessibility API.
+> [!NOTE]
+> **Compatibility Status:** Currently, **only Antigravity (`Antigravity.app`) has been tested in practice**. MultiAI also detects and generates isolation profiles for other Electron apps (e.g., Claude Desktop), VS Code-based IDEs (e.g., Cursor, VS Code), Chromium Browser App Mode (`gemini.google.com`, `chatgpt.com`, `claude.ai`), and generic native macOS apps, though those have not yet been verified end-to-end.
 
 ---
 
-## Build & Cài đặt
+## Requirements
 
-### Chạy test
+- macOS 14.0 (Sonoma) or newer
+- Xcode / Swift 5.10+ toolchain
+
+---
+
+## Build & Install
+
+Run the unit tests:
 ```bash
 swift test
 ```
 
-### Build và cài vào `~/Applications/MultiAI.app`
+Build `build/MultiAI.app`:
+```bash
+./scripts/build-app.sh
+```
+
+Build and install directly into `~/Applications/MultiAI.app`:
 ```bash
 ./scripts/build-app.sh --install
 ```
 
-Sau khi cài xong, bạn có thể mở app bằng lệnh:
+Launch the app:
 ```bash
 open ~/Applications/MultiAI.app
 ```
-hoặc tìm **MultiAI** trong Spotlight (`Cmd + Space`).
+(Or open **MultiAI** via Spotlight with `Cmd + Space`.)
 
 ---
 
-## Quyền Accessibility (cho tính năng Chia cửa sổ)
+## Usage Guide
 
-Lần đầu sử dụng tính năng **Chia cửa sổ (Side by Side / Grid / Stacked)**, macOS sẽ hỏi cấp quyền **Accessibility**:
-1. Mở **System Settings → Privacy & Security → Accessibility**.
-2. Bật quyền cho **MultiAI** (hoặc bấm nút *"Mở Cài đặt Accessibility"* ngay trên banner thông báo trong app).
+### 1. Add an Account (`Cmd + N`)
+1. Open **MultiAI** and click **Thêm Tài khoản / Add Account** (`Cmd + N`).
+2. Select an installed desktop app (or browse for any `.app` bundle).
+3. Enter a display name, pick a 1–2 character badge label and badge color, and review the auto-detected isolation settings.
+4. Click **Tạo Tài khoản / Create** — MultiAI creates an isolated profile and builds a standalone `.app` wrapper in `~/Applications/MultiAI Apps/`.
+
+### 2. Antigravity Notes
+- MultiAI automatically enables **isolated `HOME`** for `Antigravity.app` so each account keeps its own login (`~/.gemini/jetski-standalone-oauth-token`) and runtime state/conversations (`~/.gemini/antigravity/`).
+- Safe developer directories and dotfiles (`workspace`, `Desktop`, `Documents`, `Downloads`, `.ssh`, `.gitconfig`, `.zshrc`, `.zprofile`, `.zshenv`, `.bashrc`, `.bash_profile`, `.npmrc`) are symlinked into each isolated `HOME` so Git and terminals keep working seamlessly.
+- Enable **Share Projects, MCP & Plugins** (`~/.gemini/config`) to share your sidebar Projects list, MCP servers, Plugins, `GEMINI.md`, and `trustedFolders.json` live across accounts.
+  *(Active conversations and `language_server` databases in `~/.gemini/antigravity/` remain isolated per account so concurrent instances do not collide.)*
+
+### 3. Launch, Focus & Stop
+- Use the **Dashboard** or the **Menu Bar** icon to launch, focus, or stop any account and see live running status (PID).
+- Standalone `.app` bundles in `~/Applications/MultiAI Apps/` can also be launched directly from Finder, Spotlight, or the Dock.
+
+### 4. Window Tiling (Side-by-Side / Grid)
+- Use the **Window Tiling** toolbar menu (or Menu Bar quick bar when 2+ accounts are running) to arrange windows in **Side by Side**, **Grid**, or **Stacked** layouts.
+- On first use, grant **Accessibility** permission to **MultiAI** in **System Settings → Privacy & Security → Accessibility**.
+
+### 5. Other Apps & Profile Storage
+- **Electron / VS Code-based IDEs**: Isolated via `--user-data-dir` (and optional `--extensions-dir`).
+- **Native macOS Keychain Apps (e.g., `ChatGPT.app`)**: macOS Keychain shares credentials across native app instances under the same macOS user. MultiAI provides a 1-click switch to **Browser App Mode** (`https://chatgpt.com` via Chrome/Edge) for independent sessions.
+- **Data & Safe Removal**: Profiles are stored in `~/Library/Application Support/MultiAI/Profiles/<UUID>`. Deleting an account lets you keep or delete profile data; when deleting, MultiAI unlinks symlinks recursively before removing the profile folder so your real `~/` files are never touched.
 
 ---
 
-## Cấu trúc thư mục
+## Project Structure
 
-- `Sources/MultiAICore/`: Models và Services (Discovery, IconBadgeRenderer, AppBundleGenerator, ProcessTracker, WindowTiler, InstanceStore).
-- `Sources/MultiAI/`: Giao diện SwiftUI (Dashboard, Card, Add/Edit Sheet, Menu Bar).
-- `Tests/MultiAITests/`: Unit tests cho toàn bộ core logic.
-- `scripts/build-app.sh`: Đóng gói `MultiAI.app` với icon và chữ ký ad-hoc.
+- `Sources/MultiAICore/` — Core models and services (`AppDiscoveryService`, `IconBadgeRenderer`, `AppBundleGenerator`, `ProcessTracker`, `WindowTiler`, `InstanceStore`)
+- `Sources/MultiAI/` — SwiftUI views (`DashboardView`, `InstanceCardView`, `AddEditInstanceSheet`, `MenuBarView`)
+- `Tests/MultiAITests/` — Unit tests (`MultiAITests`)
+- `scripts/build-app.sh` — Release build, `.icns` icon generation, ad-hoc signing, and installation script
