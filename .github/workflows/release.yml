@@ -1,0 +1,116 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump strategy
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Test, Build & Release (arm64)
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run unit tests
+        run: swift test
+
+      - name: Determine version
+        id: version
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BUMP_INPUT: ${{ inputs.bump || 'auto' }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            VERSION="0.0.0-pr.${PR_NUMBER}"
+            TAG=""
+          else
+            VERSION="$(./scripts/next-version.sh --bump "$BUMP_INPUT")"
+            TAG="v${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION}${TAG:+ (tag: ${TAG})}"
+
+      - name: Build MultiAI.app (arm64)
+        run: |
+          ./scripts/build-app.sh \
+            --arch arm64 \
+            --version "${{ steps.version.outputs.version }}" \
+            --build-number "${{ github.run_number }}"
+
+          ARCHS="$(lipo -archs build/MultiAI.app/Contents/MacOS/MultiAI)"
+          echo "Built architectures: $ARCHS"
+          [[ "$ARCHS" == *"arm64"* ]]
+          codesign --verify --deep --strict build/MultiAI.app
+
+      - name: Package DMG, ZIP, and checksums
+        if: github.event_name != 'pull_request'
+        run: |
+          ./scripts/package-release.sh \
+            --version "${{ steps.version.outputs.version }}" \
+            --arch arm64 \
+            --output-dir build/release
+
+      - name: Upload release artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultiAI-${{ steps.version.outputs.tag }}-arm64
+          path: build/release/*
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          NOTES=$(cat <<'EOF'
+          ## Installation (macOS 14+ · Apple Silicon)
+
+          - **DMG**: Download `MultiAI-__VERSION__-arm64.dmg`, open it, and drag **MultiAI.app** into **Applications**.
+          - **ZIP**: Download `MultiAI-__VERSION__-arm64.zip` and extract **MultiAI.app** into **Applications**.
+
+          > **Note (Ad-hoc signed build):** If macOS Gatekeeper blocks the app on first launch, run:
+          > ```bash
+          > xattr -cr /Applications/MultiAI.app
+          > ```
+          EOF
+          )
+          NOTES="${NOTES//__VERSION__/$VERSION}"
+
+          gh release create "$TAG" \
+            "build/release/MultiAI-${VERSION}-arm64.dmg" \
+            "build/release/MultiAI-${VERSION}-arm64.zip" \
+            "build/release/SHA256SUMS.txt" \
+            --target "${{ github.sha }}" \
+            --title "MultiAI ${TAG}" \
+            --generate-notes \
+            --notes "$NOTES"

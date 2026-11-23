@@ -5,21 +5,75 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 INSTALL=false
-for arg in "$@"; do
-  case "$arg" in
-    --install) INSTALL=true ;;
+APP_VERSION="${APP_VERSION:-0.0.1}"
+APP_BUILD_NUMBER="${APP_BUILD_NUMBER:-1}"
+ARCH=""
+
+usage() {
+  echo "Usage: $0 [--install] [--version <X.Y.Z>] [--build-number <N>] [--arch <arm64|x86_64>]" >&2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --install)
+      INSTALL=true
+      shift
+      ;;
+    --version)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --version requires a value" >&2
+        usage
+        exit 1
+      fi
+      APP_VERSION="$2"
+      shift 2
+      ;;
+    --build-number)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --build-number requires a value" >&2
+        usage
+        exit 1
+      fi
+      APP_BUILD_NUMBER="$2"
+      shift 2
+      ;;
+    --arch)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --arch requires a value" >&2
+        usage
+        exit 1
+      fi
+      case "$2" in
+        arm64|x86_64) ARCH="$2" ;;
+        *)
+          echo "Error: Unsupported architecture '$2' (expected arm64 or x86_64)" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
     *)
-      echo "Unknown argument: $arg" >&2
-      echo "Usage: $0 [--install]" >&2
+      echo "Unknown argument: $1" >&2
+      usage
       exit 1
       ;;
   esac
 done
 
-echo "==> Building MultiAI (release)..."
-swift build -c release
+BUILD_ARGS=(-c release)
+if [[ -n "$ARCH" ]]; then
+  BUILD_ARGS+=(--arch "$ARCH")
+fi
 
-BIN_DIR="$(swift build -c release --show-bin-path)"
+echo "==> Building MultiAI (release${ARCH:+, arch: $ARCH}, version: $APP_VERSION, build: $APP_BUILD_NUMBER)..."
+swift build "${BUILD_ARGS[@]}"
+
+BIN_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 BIN_PATH="$BIN_DIR/MultiAI"
 if [[ ! -x "$BIN_PATH" ]]; then
   echo "Error: Release binary not found at $BIN_PATH" >&2
@@ -40,7 +94,7 @@ chmod +x "$MACOS_DIR/MultiAI"
 echo "==> Generating MultiAI AppIcon.icns..."
 "$MACOS_DIR/MultiAI" --generate-manager-icon "$RESOURCES_DIR/AppIcon.icns"
 
-cat > "$CONTENTS_DIR/Info.plist" << 'PLIST'
+cat > "$CONTENTS_DIR/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -62,9 +116,9 @@ cat > "$CONTENTS_DIR/Info.plist" << 'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>${APP_BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
