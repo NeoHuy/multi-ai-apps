@@ -73,7 +73,8 @@ public enum AppBundleGenerator {
     /// Builds exact arguments and environment variables for launching an isolated instance.
     public static func buildLaunchSpec(
         for instance: AppInstance,
-        paths: MultiAIPaths = .default
+        paths: MultiAIPaths = .default,
+        realHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser
     ) -> LaunchSpec {
         var args: [String] = []
         var env: [String: String] = [
@@ -112,9 +113,8 @@ public enum AppBundleGenerator {
 
         if instance.isolateHomeDirectory {
             env["HOME"] = homePath
-            env["XDG_CONFIG_HOME"] = xdgRoot.appendingPathComponent("config", isDirectory: true).path
-            env["XDG_DATA_HOME"] = xdgRoot.appendingPathComponent("data", isDirectory: true).path
-            env["XDG_CACHE_HOME"] = xdgRoot.appendingPathComponent("cache", isDirectory: true).path
+            env["MULTIAI_REAL_HOME"] = realHomeURL.standardizedFileURL.path
+            env["MULTIAI_ISOLATED_HOME"] = homePath
         }
 
         for entry in instance.envVars {
@@ -136,9 +136,10 @@ public enum AppBundleGenerator {
     /// Generates the `zsh` launcher script embedded inside `Contents/MacOS/launcher`.
     public static func generateLauncherScript(
         for instance: AppInstance,
-        paths: MultiAIPaths = .default
+        paths: MultiAIPaths = .default,
+        realHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser
     ) -> String {
-        let spec = buildLaunchSpec(for: instance, paths: paths)
+        let spec = buildLaunchSpec(for: instance, paths: paths, realHomeURL: realHomeURL)
         var dirsToCreate: [String] = [
             instance.profileDirectoryURL(paths: paths).path
         ]
@@ -160,12 +161,6 @@ public enum AppBundleGenerator {
 
         if instance.isolateHomeDirectory {
             dirsToCreate.append(instance.homeDirectoryURL(paths: paths).path)
-            if instance.engine != .nativeMacOS {
-                let xdg = instance.xdgDirectoryURL(paths: paths)
-                dirsToCreate.append(xdg.appendingPathComponent("config", isDirectory: true).path)
-                dirsToCreate.append(xdg.appendingPathComponent("data", isDirectory: true).path)
-                dirsToCreate.append(xdg.appendingPathComponent("cache", isDirectory: true).path)
-            }
         }
 
         var lines: [String] = [
@@ -179,6 +174,31 @@ public enum AppBundleGenerator {
         }
 
         lines.append("")
+
+        if instance.isolateHomeDirectory {
+            let resolvedRealHome = realHomeURL.standardizedFileURL.path
+            let resolvedIsoHome = instance.homeDirectoryURL(paths: paths).standardizedFileURL.path
+            let excludedCasePattern = excludedHomeMirrorItems.sorted().joined(separator: "|")
+            lines.append("_multiai_real_home=\(shellQuote(resolvedRealHome))")
+            lines.append("_multiai_iso_home=\(shellQuote(resolvedIsoHome))")
+            lines.append("if [[ \"$_multiai_iso_home\" != \"$_multiai_real_home\" && -d \"$_multiai_real_home\" ]]; then")
+            lines.append("  for _multiai_item in \"$_multiai_real_home\"/*(DN); do")
+            lines.append("    _multiai_base=\"${_multiai_item:t}\"")
+            lines.append("    case \"$_multiai_base\" in")
+            lines.append("      \(excludedCasePattern))")
+            lines.append("        continue")
+            lines.append("        ;;")
+            lines.append("    esac")
+            lines.append("    if [[ \"$_multiai_item\" == \"$_multiai_iso_home\" || \"$_multiai_iso_home\" == \"$_multiai_item\"/* ]]; then")
+            lines.append("      continue")
+            lines.append("    fi")
+            lines.append("    if [[ ! -e \"$_multiai_iso_home/$_multiai_base\" && ! -L \"$_multiai_iso_home/$_multiai_base\" ]]; then")
+            lines.append("      /bin/ln -s \"$_multiai_item\" \"$_multiai_iso_home/$_multiai_base\" || true")
+            lines.append("    fi")
+            lines.append("  done")
+            lines.append("fi")
+            lines.append("")
+        }
 
         var commandParts: [String] = ["exec", "/usr/bin/open", "-n"]
         for key in spec.environment.keys.sorted() {
@@ -201,10 +221,19 @@ public enum AppBundleGenerator {
         return lines.joined(separator: "\n")
     }
 
-    private static let safeHomeSymlinkItems: [String] = [
-        "Desktop", "Documents", "Downloads", "workspace",
-        ".ssh", ".gitconfig", ".zshrc", ".zprofile", ".zshenv",
-        ".bashrc", ".bash_profile", ".npmrc"
+    private static let excludedHomeMirrorItems: Set<String> = [
+        ".gemini",
+        ".antigravity",
+        ".antigravity-ide",
+        ".antigravity-profiles",
+        ".antigravity_cockpit",
+        "Library",
+        ".Trash",
+        ".DS_Store",
+        ".CFUserTextEncoding",
+        ".zshenv",
+        ".bashrc",
+        ".bash_profile"
     ]
 
     // Never include antigravity/, jetski-standalone-oauth-token, oauth_creds.json, google_accounts.json, or state.json
@@ -216,7 +245,7 @@ public enum AppBundleGenerator {
         "projects", "config.json", "mcp_config.json", "plugins", "sidecars"
     ]
 
-    /// Ensures the isolated profile directories exist on disk, populating safe symlinks when `isolateHomeDirectory` is enabled.
+    /// Ensures the isolated profile directories exist on disk, mirroring safe HOME entries and shell shims when `isolateHomeDirectory` is enabled.
     public static func ensureProfileDirectories(
         for instance: AppInstance,
         paths: MultiAIPaths = .default,
@@ -245,14 +274,13 @@ public enum AppBundleGenerator {
             let homeURL = instance.homeDirectoryURL(paths: paths)
             try fm.createDirectory(at: homeURL, withIntermediateDirectories: true)
 
-            if instance.engine != .nativeMacOS {
-                let xdg = instance.xdgDirectoryURL(paths: paths)
-                try fm.createDirectory(at: xdg.appendingPathComponent("config", isDirectory: true), withIntermediateDirectories: true)
-                try fm.createDirectory(at: xdg.appendingPathComponent("data", isDirectory: true), withIntermediateDirectories: true)
-                try fm.createDirectory(at: xdg.appendingPathComponent("cache", isDirectory: true), withIntermediateDirectories: true)
-            }
-
-            populateSafeHomeSymlinks(in: homeURL, from: realHomeURL, fileManager: fm)
+            populateMirroredHomeSymlinks(
+                in: homeURL,
+                profileDirURL: profileDir,
+                from: realHomeURL,
+                fileManager: fm
+            )
+            try installChildShellShims(in: homeURL, fileManager: fm)
             try syncSharedAntigravityLinks(
                 in: homeURL,
                 from: realHomeURL,
@@ -262,8 +290,9 @@ public enum AppBundleGenerator {
         }
     }
 
-    private static func populateSafeHomeSymlinks(
+    private static func populateMirroredHomeSymlinks(
         in isolatedHomeURL: URL,
+        profileDirURL: URL,
         from realHomeURL: URL,
         fileManager fm: FileManager
     ) {
@@ -271,17 +300,136 @@ public enum AppBundleGenerator {
         let resolvedRealHome = realHomeURL.standardizedFileURL
         guard resolvedIsolatedHome != resolvedRealHome else { return }
 
-        for itemName in safeHomeSymlinkItems {
-            let sourceURL = resolvedRealHome.appendingPathComponent(itemName)
-            let destURL = resolvedIsolatedHome.appendingPathComponent(itemName)
+        guard let sourceItems = try? fm.contentsOfDirectory(
+            at: resolvedRealHome,
+            includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey],
+            options: []
+        ) else {
+            return
+        }
 
-            guard fm.fileExists(atPath: sourceURL.path) else { continue }
-            // Check attributesOfItem so existing symlinks (even dangling ones) are preserved without error
-            if (try? fm.attributesOfItem(atPath: destURL.path)) != nil {
+        let backupDir = profileDirURL.appendingPathComponent("shadowed-home-backup", isDirectory: true)
+
+        for sourceURL in sourceItems {
+            let itemName = sourceURL.lastPathComponent
+            guard !excludedHomeMirrorItems.contains(itemName) else { continue }
+
+            let resolvedSource = sourceURL.standardizedFileURL
+            if resolvedSource == resolvedIsolatedHome
+                || resolvedIsolatedHome.path.hasPrefix(resolvedSource.path + "/") {
                 continue
             }
+
+            let destURL = resolvedIsolatedHome.appendingPathComponent(itemName)
+
+            if (try? fm.attributesOfItem(atPath: destURL.path)) != nil {
+                let values = try? destURL.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+                if values?.isSymbolicLink == true {
+                    continue
+                }
+
+                if values?.isDirectory == true,
+                   let contents = try? fm.contentsOfDirectory(atPath: destURL.path),
+                   contents.isEmpty {
+                    try? fm.removeItem(at: destURL)
+                } else {
+                    do {
+                        try fm.createDirectory(at: backupDir, withIntermediateDirectories: true)
+                        var backupDest = backupDir.appendingPathComponent(itemName)
+                        if (try? fm.attributesOfItem(atPath: backupDest.path)) != nil {
+                            backupDest = backupDir.appendingPathComponent("\(itemName)-\(UUID().uuidString.prefix(8))")
+                        }
+                        try fm.moveItem(at: destURL, to: backupDest)
+                    } catch {
+                        continue
+                    }
+                }
+            }
+
             try? fm.createSymbolicLink(at: destURL, withDestinationURL: sourceURL)
         }
+    }
+
+    private static func installChildShellShims(
+        in isolatedHomeURL: URL,
+        fileManager fm: FileManager
+    ) throws {
+        let shims: [(name: String, content: String)] = [
+            (
+                ".zshenv",
+                """
+                # Managed by MultiAI: restore real HOME in child shells so CLI tools & macOS Keychain work
+                if [[ -n "${MULTIAI_REAL_HOME:-}" && -z "${ANTIGRAVITY_RESOLVING_ENVIRONMENT:-}" && -z "${VSCODE_RESOLVING_ENVIRONMENT:-}" ]]; then
+                  export HOME="$MULTIAI_REAL_HOME"
+                fi
+                if [[ -n "${MULTIAI_REAL_HOME:-}" && -f "$MULTIAI_REAL_HOME/.zshenv" ]]; then
+                  source "$MULTIAI_REAL_HOME/.zshenv"
+                fi
+
+                """
+            ),
+            (
+                ".bash_profile",
+                """
+                # Managed by MultiAI: restore real HOME in child shells so CLI tools & macOS Keychain work
+                if [ -n "${MULTIAI_REAL_HOME:-}" ] && [ -z "${ANTIGRAVITY_RESOLVING_ENVIRONMENT:-}" ] && [ -z "${VSCODE_RESOLVING_ENVIRONMENT:-}" ]; then
+                  export HOME="$MULTIAI_REAL_HOME"
+                fi
+                if [ -n "${MULTIAI_REAL_HOME:-}" ] && [ -f "$MULTIAI_REAL_HOME/.bash_profile" ]; then
+                  . "$MULTIAI_REAL_HOME/.bash_profile"
+                fi
+
+                """
+            ),
+            (
+                ".bashrc",
+                """
+                # Managed by MultiAI: restore real HOME in child shells so CLI tools & macOS Keychain work
+                if [ -n "${MULTIAI_REAL_HOME:-}" ] && [ -z "${ANTIGRAVITY_RESOLVING_ENVIRONMENT:-}" ] && [ -z "${VSCODE_RESOLVING_ENVIRONMENT:-}" ]; then
+                  export HOME="$MULTIAI_REAL_HOME"
+                fi
+                if [ -n "${MULTIAI_REAL_HOME:-}" ] && [ -f "$MULTIAI_REAL_HOME/.bashrc" ]; then
+                  . "$MULTIAI_REAL_HOME/.bashrc"
+                fi
+
+                """
+            )
+        ]
+
+        for shim in shims {
+            let shimURL = isolatedHomeURL.appendingPathComponent(shim.name, isDirectory: false)
+            // Always remove any existing entry (especially symlinks from older profiles) before writing
+            if (try? fm.attributesOfItem(atPath: shimURL.path)) != nil {
+                try fm.removeItem(at: shimURL)
+            }
+            try shim.content.write(to: shimURL, atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// Returns true if an isolated-HOME instance's standalone `.app` launcher predates `MULTIAI_REAL_HOME`.
+    public static func needsLauncherUpgrade(
+        for instance: AppInstance,
+        paths: MultiAIPaths = .default
+    ) -> Bool {
+        guard instance.isolateHomeDirectory, instance.createStandaloneApp else {
+            return false
+        }
+
+        let appPath: String
+        if let existing = instance.standaloneAppPath, !existing.isEmpty {
+            appPath = existing
+        } else {
+            appPath = instance.expectedStandaloneAppURL(paths: paths).path
+        }
+
+        let launcherURL = URL(fileURLWithPath: appPath, isDirectory: true)
+            .appendingPathComponent("Contents/MacOS/launcher", isDirectory: false)
+        guard FileManager.default.fileExists(atPath: launcherURL.path),
+              let contents = try? String(contentsOf: launcherURL, encoding: .utf8) else {
+            return false
+        }
+
+        return !contents.contains("MULTIAI_REAL_HOME=")
     }
 
     private static func syncSharedAntigravityLinks(
@@ -354,16 +502,12 @@ public enum AppBundleGenerator {
         }
     }
 
-    /// Safely deletes an isolated profile directory by unlinking all symlinks inside `home/` recursively first.
+    /// Safely deletes an isolated profile directory by unlinking all symlinks inside it recursively first.
     public static func removeProfileDirectorySafely(at profileURL: URL) throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: profileURL.path) else { return }
 
-        let homeURL = profileURL.appendingPathComponent("home", isDirectory: true)
-        if fm.fileExists(atPath: homeURL.path) {
-            unlinkSymlinksRecursively(in: homeURL, fileManager: fm)
-        }
-
+        unlinkSymlinksRecursively(in: profileURL, fileManager: fm)
         try fm.removeItem(at: profileURL)
     }
 

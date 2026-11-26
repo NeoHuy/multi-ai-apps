@@ -303,7 +303,7 @@ struct AddEditInstanceSheet: View {
                 Toggle("Tách thư mục HOME riêng (cần thiết để tách ~/.gemini)", isOn: $isolateHomeDirectory)
                     .font(.callout.weight(.medium))
 
-                Text("Các thư mục làm việc (workspace, Desktop, Documents, Downloads, .ssh, .gitconfig, .zshrc) sẽ được symlink sang HOME riêng để không ảnh hưởng terminal/git, trong khi ~/.gemini được tách hoàn toàn cho từng tài khoản.")
+                Text("Các thư mục và cấu hình CLI từ ~/ (.config, .claude, .aws, .ssh, .gitconfig, workspace...) sẽ được mirror qua symlink, đồng thời terminal con tự động khôi phục quyền truy cập macOS Keychain cho gh, claude và git trong khi ~/.gemini và ~/Library vẫn được tách riêng cho từng tài khoản.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

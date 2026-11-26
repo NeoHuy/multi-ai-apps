@@ -21,6 +21,7 @@ public final class InstanceStore {
     public init(paths: MultiAIPaths = .default, startMonitoring: Bool = true) {
         self.paths = paths
         loadInstances()
+        upgradeOutdatedIsolatedHomeInstances()
         rescanInstalledApps()
         if startMonitoring {
             beginMonitoring()
@@ -232,6 +233,9 @@ public final class InstanceStore {
         Task {
             do {
                 try AppBundleGenerator.ensureProfileDirectories(for: instance, paths: paths)
+                if AppBundleGenerator.needsLauncherUpgrade(for: instance, paths: paths) {
+                    _ = try? AppBundleGenerator.createOrUpdateStandaloneApp(for: instance, paths: paths)
+                }
                 let spec = AppBundleGenerator.buildLaunchSpec(for: instance, paths: paths)
 
                 let config = NSWorkspace.OpenConfiguration()
@@ -397,6 +401,15 @@ public final class InstanceStore {
         // Prune dead native tracked PIDs
         let aliveSet = Set(updatedPIDs.values)
         trackedNativePIDs = trackedNativePIDs.filter { aliveSet.contains($0.value) }
+    }
+
+    private func upgradeOutdatedIsolatedHomeInstances() {
+        for instance in instances where instance.isolateHomeDirectory {
+            guard AppBundleGenerator.needsLauncherUpgrade(for: instance, paths: paths) else {
+                continue
+            }
+            _ = try? AppBundleGenerator.createOrUpdateStandaloneApp(for: instance, paths: paths)
+        }
     }
 
     private func beginMonitoring() {
