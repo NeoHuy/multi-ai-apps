@@ -50,8 +50,9 @@ open ~/Applications/MultiAI.app
 4. Click **Tạo Tài khoản / Create** — MultiAI creates an isolated profile and builds a standalone `.app` wrapper in `~/Applications/MultiAI Apps/`.
 
 ### 2. Antigravity Notes
-- MultiAI automatically enables **isolated `HOME`** for `Antigravity.app` so each account keeps its own login (`~/.gemini/jetski-standalone-oauth-token`) and runtime state/conversations (`~/.gemini/antigravity/`).
-- Safe developer directories and dotfiles (`workspace`, `Desktop`, `Documents`, `Downloads`, `.ssh`, `.gitconfig`, `.zshrc`, `.zprofile`, `.zshenv`, `.bashrc`, `.bash_profile`, `.npmrc`) are symlinked into each isolated `HOME` so Git and terminals keep working seamlessly.
+- MultiAI automatically enables **isolated `HOME`** for `Antigravity.app` so each account keeps its own login (`~/.gemini/jetski-standalone-oauth-token`), runtime state/conversations (`~/.gemini/antigravity/`), and `~/Library` (`credential-user-scope`, Keychain isolation, caches, logs).
+- Top-level developer directories, CLI configs, and dotfiles from your real `~/` (`.config`, `.claude`, `.aws`, `.kube`, `.ssh`, `.gitconfig`, `workspace`, `Desktop`, etc.) are mirrored via symlinks into each isolated `HOME` (excluding `.gemini`, `.antigravity*`, and `Library`), without overriding `XDG_*` for Electron/IDE apps.
+- Managed shell shims (`.zshenv`, `.bash_profile`, `.bashrc`) restore `HOME` in child terminal shells while preserving the isolated `HOME` during Antigravity's own startup environment probes, so macOS Keychain-backed CLIs (`gh`, `claude`, `git`) keep working without colliding Antigravity's Google OAuth session.
 - Enable **Share Projects, MCP & Plugins** (`~/.gemini/config`) to share your sidebar Projects list, MCP servers, Plugins, `GEMINI.md`, and `trustedFolders.json` live across accounts.
   *(Active conversations and `language_server` databases in `~/.gemini/antigravity/` remain isolated per account so concurrent instances do not collide.)*
 

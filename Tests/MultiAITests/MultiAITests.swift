@@ -351,18 +351,35 @@ final class MultiAITests: XCTestCase {
         let desktopDir = mockRealHome.appendingPathComponent("Desktop", isDirectory: true)
         let geminiDir = mockRealHome.appendingPathComponent(".gemini", isDirectory: true)
         let libraryDir = mockRealHome.appendingPathComponent("Library", isDirectory: true)
+        let ghConfigDir = mockRealHome.appendingPathComponent(".config/gh", isDirectory: true)
+        let claudeDir = mockRealHome.appendingPathComponent(".claude", isDirectory: true)
+        let awsDir = mockRealHome.appendingPathComponent(".aws", isDirectory: true)
         try fm.createDirectory(at: desktopDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: geminiDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: libraryDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: ghConfigDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: claudeDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: awsDir, withIntermediateDirectories: true)
 
         let keepFile = desktopDir.appendingPathComponent("keep.txt")
         let gitconfigFile = mockRealHome.appendingPathComponent(".gitconfig")
         let secretGeminiFile = geminiDir.appendingPathComponent("secret.txt")
         let prefsFile = libraryDir.appendingPathComponent("prefs.plist")
+        let ghHostsFile = ghConfigDir.appendingPathComponent("hosts.yml")
+        let claudeSettingsFile = claudeDir.appendingPathComponent("settings.json")
+        let claudeJsonFile = mockRealHome.appendingPathComponent(".claude.json")
+        let awsConfigFile = awsDir.appendingPathComponent("config")
+        let realZshenvFile = mockRealHome.appendingPathComponent(".zshenv")
+
         try "keep".write(to: keepFile, atomically: true, encoding: .utf8)
         try "[user]\n\tname = Test\n".write(to: gitconfigFile, atomically: true, encoding: .utf8)
         try "secret".write(to: secretGeminiFile, atomically: true, encoding: .utf8)
         try "plist".write(to: prefsFile, atomically: true, encoding: .utf8)
+        try "github.com:\n  user: Test\n".write(to: ghHostsFile, atomically: true, encoding: .utf8)
+        try "{\"ok\":true}".write(to: claudeSettingsFile, atomically: true, encoding: .utf8)
+        try "{\"userID\":\"123\"}".write(to: claudeJsonFile, atomically: true, encoding: .utf8)
+        try "[default]\nregion = us-east-1\n".write(to: awsConfigFile, atomically: true, encoding: .utf8)
+        try "# real zshenv\n".write(to: realZshenvFile, atomically: true, encoding: .utf8)
 
         let instance = AppInstance(
             name: "Antigravity Isolated",
@@ -375,39 +392,122 @@ final class MultiAITests: XCTestCase {
             isolateHomeDirectory: true
         )
 
+        // Simulate upgrading an older profile with stale shadowed dirs/files and an old .zshenv symlink
+        let profileDir = instance.profileDirectoryURL(paths: paths)
+        let isolatedHome = instance.homeDirectoryURL(paths: paths)
+        let staleClaudeDir = isolatedHome.appendingPathComponent(".claude", isDirectory: true)
+        let staleClaudeJson = isolatedHome.appendingPathComponent(".claude.json", isDirectory: false)
+        let oldZshenvLink = isolatedHome.appendingPathComponent(".zshenv", isDirectory: false)
+        try fm.createDirectory(at: staleClaudeDir, withIntermediateDirectories: true)
+        try "stale-note".write(to: staleClaudeDir.appendingPathComponent("empty-note.txt"), atomically: true, encoding: .utf8)
+        try "{\"stale\":true}".write(to: staleClaudeJson, atomically: true, encoding: .utf8)
+        try fm.createSymbolicLink(at: oldZshenvLink, withDestinationURL: realZshenvFile)
+
         try AppBundleGenerator.ensureProfileDirectories(for: instance, paths: paths, realHomeURL: mockRealHome)
 
-        let isolatedHome = instance.homeDirectoryURL(paths: paths)
         let linkedDesktop = isolatedHome.appendingPathComponent("Desktop")
         let linkedGitconfig = isolatedHome.appendingPathComponent(".gitconfig")
+        let linkedConfig = isolatedHome.appendingPathComponent(".config")
+        let linkedClaude = isolatedHome.appendingPathComponent(".claude")
+        let linkedClaudeJson = isolatedHome.appendingPathComponent(".claude.json")
+        let linkedAws = isolatedHome.appendingPathComponent(".aws")
         let isolatedGemini = isolatedHome.appendingPathComponent(".gemini")
         let isolatedLibrary = isolatedHome.appendingPathComponent("Library")
+        let isolatedZshenv = isolatedHome.appendingPathComponent(".zshenv")
 
         XCTAssertEqual(try? linkedDesktop.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
         XCTAssertEqual(try? linkedGitconfig.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
+        XCTAssertEqual(try? linkedConfig.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
+        XCTAssertEqual(try? linkedClaude.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
+        XCTAssertEqual(try? linkedClaudeJson.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
+        XCTAssertEqual(try? linkedAws.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, true)
         XCTAssertFalse(fm.fileExists(atPath: isolatedGemini.path))
         XCTAssertFalse(fm.fileExists(atPath: isolatedLibrary.path))
 
-        let spec = AppBundleGenerator.buildLaunchSpec(for: instance, paths: paths)
-        XCTAssertEqual(spec.environment["HOME"], isolatedHome.path)
-        XCTAssertEqual(
-            spec.environment["XDG_CONFIG_HOME"],
-            instance.xdgDirectoryURL(paths: paths).appendingPathComponent("config").path
-        )
-        XCTAssertEqual(
-            spec.environment["XDG_DATA_HOME"],
-            instance.xdgDirectoryURL(paths: paths).appendingPathComponent("data").path
-        )
-        XCTAssertEqual(
-            spec.environment["XDG_CACHE_HOME"],
-            instance.xdgDirectoryURL(paths: paths).appendingPathComponent("cache").path
-        )
+        // .zshenv inside isolatedHome must be a regular shim file and real ~/.zshenv must remain untouched
+        XCTAssertEqual(try? isolatedZshenv.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink, false)
+        let shimContents = try String(contentsOf: isolatedZshenv, encoding: .utf8)
+        XCTAssertTrue(shimContents.contains("MULTIAI_REAL_HOME"))
+        XCTAssertTrue(shimContents.contains("ANTIGRAVITY_RESOLVING_ENVIRONMENT"))
+        XCTAssertEqual(try String(contentsOf: realZshenvFile, encoding: .utf8), "# real zshenv\n")
 
-        let profileDir = instance.profileDirectoryURL(paths: paths)
+        // Stale shadowed entries must be preserved in shadowed-home-backup
+        let backupDir = profileDir.appendingPathComponent("shadowed-home-backup", isDirectory: true)
+        XCTAssertTrue(fm.fileExists(atPath: backupDir.appendingPathComponent(".claude/empty-note.txt").path))
+        XCTAssertTrue(fm.fileExists(atPath: backupDir.appendingPathComponent(".claude.json").path))
+
+        let spec = AppBundleGenerator.buildLaunchSpec(for: instance, paths: paths, realHomeURL: mockRealHome)
+        XCTAssertEqual(spec.environment["HOME"], isolatedHome.path)
+        XCTAssertEqual(spec.environment["MULTIAI_REAL_HOME"], mockRealHome.standardizedFileURL.path)
+        XCTAssertEqual(spec.environment["MULTIAI_ISOLATED_HOME"], isolatedHome.path)
+        XCTAssertNil(spec.environment["XDG_CONFIG_HOME"])
+        XCTAssertNil(spec.environment["XDG_DATA_HOME"])
+        XCTAssertNil(spec.environment["XDG_CACHE_HOME"])
+
+        let script = AppBundleGenerator.generateLauncherScript(for: instance, paths: paths, realHomeURL: mockRealHome)
+        XCTAssertTrue(script.contains("MULTIAI_REAL_HOME="))
+        XCTAssertFalse(script.contains("XDG_CONFIG_HOME="))
+
         try AppBundleGenerator.removeProfileDirectorySafely(at: profileDir)
         XCTAssertFalse(fm.fileExists(atPath: profileDir.path))
         XCTAssertTrue(fm.fileExists(atPath: keepFile.path))
         XCTAssertTrue(fm.fileExists(atPath: secretGeminiFile.path))
+        XCTAssertTrue(fm.fileExists(atPath: ghHostsFile.path))
+        XCTAssertTrue(fm.fileExists(atPath: claudeJsonFile.path))
+        XCTAssertTrue(fm.fileExists(atPath: realZshenvFile.path))
+    }
+
+    func testIsolatedHomeZshShimRestoresHomeExceptDuringEnvProbe() throws {
+        let paths = try makeTempPaths()
+        defer { cleanupTempPaths(paths) }
+
+        let fm = FileManager.default
+        let mockRealHome = paths.appSupportDirectory.deletingLastPathComponent()
+            .appendingPathComponent("MockRealHomeShim", isDirectory: true)
+        try fm.createDirectory(at: mockRealHome, withIntermediateDirectories: true)
+
+        let instance = AppInstance(
+            name: "Antigravity Shim Test",
+            sourceAppPath: "/Applications/Antigravity.app",
+            sourceAppName: "Antigravity",
+            sourceBundleID: "com.google.antigravity",
+            engine: .electron,
+            badgeText: "S",
+            badgeColor: .blue,
+            isolateHomeDirectory: true
+        )
+
+        try AppBundleGenerator.ensureProfileDirectories(for: instance, paths: paths, realHomeURL: mockRealHome)
+        let isolatedHome = instance.homeDirectoryURL(paths: paths)
+        let expectedRealHome = mockRealHome.standardizedFileURL.path
+        let expectedIsolatedHome = isolatedHome.standardizedFileURL.path
+
+        func runZshPrintHome(extraEnv: [String: String]) throws -> String {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-c", "printf '%s' \"$HOME\""]
+            var env = [
+                "PATH": "/usr/bin:/bin",
+                "HOME": expectedIsolatedHome,
+                "MULTIAI_REAL_HOME": expectedRealHome
+            ]
+            for (k, v) in extraEnv {
+                env[k] = v
+            }
+            process.environment = env
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = Pipe()
+            try process.run()
+            process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, 0)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+
+        XCTAssertEqual(try runZshPrintHome(extraEnv: [:]), expectedRealHome)
+        XCTAssertEqual(try runZshPrintHome(extraEnv: ["ANTIGRAVITY_RESOLVING_ENVIRONMENT": "1"]), expectedIsolatedHome)
+        XCTAssertEqual(try runZshPrintHome(extraEnv: ["VSCODE_RESOLVING_ENVIRONMENT": "1"]), expectedIsolatedHome)
     }
 
     // MARK: - 8. Shared Antigravity Projects & Backwards-Compatible Decoding
